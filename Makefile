@@ -18,12 +18,12 @@ setup: ## Install dependencies and setup development environment
 
 build: ## Build the application
 	@echo "Building application..."
-	go build -o bin/server cmd/server/main.go
+	go build -o bin/server cmd/main.go
 	@echo "Build complete! Binary: bin/server"
 
 run: ## Run the application
 	@echo "Starting server..."
-	go run cmd/server/main.go
+	go run cmd/main.go
 
 test: ## Run unit tests
 	@echo "Running tests..."
