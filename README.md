@@ -1,8 +1,8 @@
-# PeopleAroundMe - Technical Architecture Document
+# NearTalk - Technical Architecture Document
 
 ## 🎯 Project Overview
 
-**PeopleAroundMe** is a proximity-based, anonymous chat and voice platform that allows people in physical proximity to connect and communicate in real-time without accounts or persistent data storage.
+**NearTalk** is a proximity-based, anonymous chat and voice platform that allows people in physical proximity to connect and communicate in real-time without accounts or persistent data storage.
 
 ### Core Features
 - Anonymous, no-signup access
@@ -820,7 +820,7 @@ graph TB
 
 1. **Set up Go project structure**
    ```
-   peoplearoundme/
+   NearTalk/
    ├── cmd/
    │   └── server/
    │       └── main.go
