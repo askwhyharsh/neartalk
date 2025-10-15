@@ -8,10 +8,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	"github.com/askwhyharsh/peoplearoundme/internal/storage"
 )
 
 type Service struct {
-	redis      *redis.Client
+	redis      storage.RedisClient
 	ttl        time.Duration
 	maxChanges int
 }
@@ -26,7 +27,7 @@ type Session struct {
 	IPAddress           string    `json:"ip_address"`
 }
 
-func NewService(redisClient *redis.Client, ttl time.Duration, maxChanges int) *Service {
+func NewService(redisClient storage.RedisClient, ttl time.Duration, maxChanges int) *Service {
 	return &Service{
 		redis:      redisClient,
 		ttl:        ttl,
@@ -54,7 +55,7 @@ func (s *Service) Create(ctx context.Context, ipAddress string) (*Session, error
 
 func (s *Service) Get(ctx context.Context, sessionID string) (*Session, error) {
 	key := s.sessionKey(sessionID)
-	data, err := s.redis.Get(ctx, key).Bytes()
+	data, err := s.redis.Get(ctx, key)
 	if err != nil {
 		if err == redis.Nil {
 			return nil, fmt.Errorf("session not found")
@@ -63,7 +64,7 @@ func (s *Service) Get(ctx context.Context, sessionID string) (*Session, error) {
 	}
 
 	var session Session
-	if err := json.Unmarshal(data, &session); err != nil {
+	if err := json.Unmarshal([]byte(data), &session); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal session: %w", err)
 	}
 
@@ -99,7 +100,7 @@ func (s *Service) UpdateLastSeen(ctx context.Context, sessionID string) error {
 
 func (s *Service) Delete(ctx context.Context, sessionID string) error {
 	key := s.sessionKey(sessionID)
-	return s.redis.Del(ctx, key).Err()
+	return s.redis.Del(ctx, key)
 }
 
 func (s *Service) save(ctx context.Context, session *Session) error {
@@ -109,7 +110,7 @@ func (s *Service) save(ctx context.Context, session *Session) error {
 		return fmt.Errorf("failed to marshal session: %w", err)
 	}
 
-	return s.redis.Set(ctx, key, data, s.ttl).Err()
+	return s.redis.Set(ctx, key, data, s.ttl)
 }
 
 func (s *Service) sessionKey(sessionID string) string {
@@ -132,7 +133,7 @@ func (s *Service) GetRemainingChanges(ctx context.Context, sessionID string) (in
 
 func (s *Service) Exists(ctx context.Context, sessionID string) (bool, error) {
 	key := s.sessionKey(sessionID)
-	count, err := s.redis.Exists(ctx, key).Result()
+	count, err := s.redis.Exists(ctx, key)
 	if err != nil {
 		return false, err
 	}

@@ -1,14 +1,17 @@
 package api
 
 import (
+	"github.com/askwhyharsh/peoplearoundme/internal/ratelimit"
+
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(r *gin.Engine, handler *Handler, wsHandler WebSocketHandler) {
+func SetupRoutes(r *gin.Engine, handler *Handler, wsHandler WebSocketHandler, rlMiddleware *ratelimit.Middleware) {
 	// Apply global middleware
 	r.Use(CORSMiddleware())
 	r.Use(RequestTimeMiddleware())
 	r.Use(RecoveryMiddleware())
+	r.Use(rlMiddleware.IPRateLimit()) // IP-based rate limiting
 
 	// API routes
 	api := r.Group("/api")
@@ -17,19 +20,19 @@ func SetupRoutes(r *gin.Engine, handler *Handler, wsHandler WebSocketHandler) {
 		session := api.Group("/session")
 		{
 			session.POST("/create", handler.CreateSession)
-			session.PATCH("/username", handler.UpdateUsername)
+			session.PATCH("/username", rlMiddleware.SessionRateLimit(), handler.UpdateUsername)
 		}
 
 		// Location routes
 		location := api.Group("/location")
 		{
-			location.POST("/update", handler.UpdateLocation)
+			location.POST("/update", rlMiddleware.SessionRateLimit(), handler.UpdateLocation)
 		}
 
 		// Nearby users
-		api.GET("/nearby", handler.GetNearbyUsers)
+		api.GET("/nearby", rlMiddleware.SessionRateLimit(), handler.GetNearbyUsers)
 
-		// Health check
+		// Health check (no rate limit)
 		api.GET("/health", handler.Health)
 	}
 

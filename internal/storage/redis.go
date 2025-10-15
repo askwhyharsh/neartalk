@@ -9,6 +9,8 @@ import (
 
 type RedisClient interface {
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error
+	Scan(ctx context.Context, cursor uint64, match string, count int64) *redis.ScanCmd 
+	SCard(ctx context.Context, key string) (int64, error)
 	Get(ctx context.Context, key string) (string, error)
 	Del(ctx context.Context, keys ...string) error
 	Exists(ctx context.Context, keys ...string) (int64, error)
@@ -51,6 +53,10 @@ func NewRedisClient(cfg *config.Config) (RedisClient, error) {
 	}
 
 	return &redisClient{client: client}, nil
+}
+
+func (r *redisClient) Raw() *redis.Client {
+    return r.client
 }
 
 func (r *redisClient) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
@@ -139,4 +145,13 @@ func (r *redisClient) Ping(ctx context.Context) error {
 
 func (r *redisClient) Close() error {
 	return r.client.Close()
+}
+
+
+func (r *redisClient) SCard(ctx context.Context, key string) (int64, error) {
+    return r.client.SCard(ctx, key).Result()
+}
+
+func (r *redisClient) Scan(ctx context.Context, cursor uint64, match string, count int64) *redis.ScanCmd {
+    return r.client.Scan(ctx, cursor, match, count)
 }

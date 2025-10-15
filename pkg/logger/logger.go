@@ -1,64 +1,54 @@
 package logger
 
 import (
+	"log/slog"
 	"os"
-
-	"go.uber.org/zap"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
+// Logger is an interface for logging
 type Logger interface {
-	Debug(msg string, fields ...zap.Field)
-	Info(msg string, fields ...zap.Field)
-	Warn(msg string, fields ...zap.Field)
-	Error(msg string, fields ...zap.Field)
-	Fatal(msg string, fields ...zap.Field)
-	With(fields ...zap.Field) Logger
+	Info(msg string, args ...any)
+	Error(msg string, args ...any)
+	Debug(msg string, args ...any)
+	Warn(msg string, args ...any)
 }
 
-type zapLogger struct {
-	logger *zap.Logger
+// SlogLogger is a concrete implementation using slog
+type SlogLogger struct {
+	logger *slog.Logger
 }
 
-func NewLogger(env string) (Logger, error) {
-	var config zap.Config
-
+// NewLogger creates a new logger instance
+func NewLogger(env string) Logger {
+	var handler slog.Handler
+	
 	if env == "production" {
-		config = zap.NewProductionConfig()
+		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+			Level: slog.LevelInfo,
+		})
 	} else {
-		config = zap.NewDevelopmentConfig()
-		config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		handler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		})
 	}
-
-	logger, err := config.Build()
-	if err != nil {
-		return nil, err
+	
+	return &SlogLogger{
+		logger: slog.New(handler),
 	}
-
-	return &zapLogger{logger: logger}, nil
 }
 
-func (l *zapLogger) Debug(msg string, fields ...zap.Field) {
-	l.logger.Debug(msg, fields...)
+func (l *SlogLogger) Info(msg string, args ...any) {
+	l.logger.Info(msg, args...)
 }
 
-func (l *zapLogger) Info(msg string, fields ...zap.Field) {
-	l.logger.Info(msg, fields...)
+func (l *SlogLogger) Error(msg string, args ...any) {
+	l.logger.Error(msg, args...)
 }
 
-func (l *zapLogger) Warn(msg string, fields ...zap.Field) {
-	l.logger.Warn(msg, fields...)
+func (l *SlogLogger) Debug(msg string, args ...any) {
+	l.logger.Debug(msg, args...)
 }
 
-func (l *zapLogger) Error(msg string, fields ...zap.Field) {
-	l.logger.Error(msg, fields...)
-}
-
-func (l *zapLogger) Fatal(msg string, fields ...zap.Field) {
-	l.logger.Fatal(msg, fields...)
-}
-
-func (l *zapLogger) With(fields ...zap.Field) Logger {
-	return &zapLogger{logger: l.logger.With(fields...)}
+func (l *SlogLogger) Warn(msg string, args ...any) {
+	l.logger.Warn(msg, args...)
 }
