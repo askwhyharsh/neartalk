@@ -10,7 +10,8 @@ import (
 )
 
 type Hub struct {
-	clients    map[string]*Client
+	clients    map[string]*Client // session id -> client
+	clientsByGeohash map[string]map[string]*Client // geohash -> sessionID -> client
 	broadcast  chan *Message
 	register   chan *Client
 	unregister chan *Client
@@ -22,6 +23,7 @@ type Hub struct {
 func NewHub(ctx context.Context, redisClient storage.RedisClient) *Hub {
 	return &Hub{
 		clients:    make(map[string]*Client),
+		clientsByGeohash: make(map[string]map[string]*Client),
 		broadcast:  make(chan *Message, 256),
 		register:   make(chan *Client, 10),      // Add buffer here!
 		unregister: make(chan *Client, 10),      // Add buffer here!
@@ -52,8 +54,14 @@ func (h *Hub) Run() {
 func (h *Hub) registerClient(client *Client) {
 	h.mu.Lock()
 	h.clients[client.sessionID] = client
-	userCount := len(h.clients)  // Get count while we have the lock
-	fmt.Println("usercount",userCount)
+
+	// Index by geohash
+	geohashPrefix := client.geohash[:4] // Use first 4 chars for proximity
+	if h.clientsByGeohash[geohashPrefix] == nil {
+		h.clientsByGeohash[geohashPrefix] = make(map[string]*Client)
+	}
+	h.clientsByGeohash[geohashPrefix][client.sessionID] = client
+
 	h.mu.Unlock()
 	
 	// Store in Redis for distributed tracking
@@ -86,8 +94,11 @@ func (h *Hub) broadcastMessage(message *Message) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
-	fmt.Printf("Broadcasting message from geohash: %s to %d clients\n", message.Geohash, len(h.clients))
-
+	// Only iterate through clients in the same geohash area
+	geohashPrefix := message.Geohash[:4]
+	targetClients := h.clientsByGeohash[geohashPrefix]
+	fmt.Printf("Broadcasting to %d clients in geohash %s (total clients: %d)\n", 
+		len(targetClients), geohashPrefix, len(h.clients))
 	// Publish to Redis for multi-server support
 	channel := "chat:" + message.Geohash
 	data, _ := json.Marshal(message)
@@ -95,7 +106,7 @@ func (h *Hub) broadcastMessage(message *Message) {
 
 	// Broadcast to local clients
 	sentCount := 0
-	for _, client := range h.clients {
+	for _, client := range targetClients {
 		// Only send to clients in the same geohash or nearby
 		if client.shouldReceiveMessage(message) {
 			select {
