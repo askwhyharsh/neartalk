@@ -3,6 +3,7 @@ package websocket
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 
 	"github.com/askwhyharsh/neartalk/internal/storage"
@@ -22,8 +23,8 @@ func NewHub(ctx context.Context, redisClient storage.RedisClient) *Hub {
 	return &Hub{
 		clients:    make(map[string]*Client),
 		broadcast:  make(chan *Message, 256),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
+		register:   make(chan *Client, 10),      // Add buffer here!
+		unregister: make(chan *Client, 10),      // Add buffer here!
 		redis:      redisClient,
 		ctx:        ctx,
 	}
@@ -33,10 +34,13 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case client := <-h.register:
+			fmt.Println("reg client")
 			h.registerClient(client)
 		case client := <-h.unregister:
+			fmt.Println("un reg client ")
 			h.unregisterClient(client)
 		case message := <-h.broadcast:
+			fmt.Println("hereeeeee")
 			h.broadcastMessage(message)
 		case <-h.ctx.Done():
 			h.shutdown()
@@ -47,10 +51,11 @@ func (h *Hub) Run() {
 
 func (h *Hub) registerClient(client *Client) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
-
 	h.clients[client.sessionID] = client
-
+	userCount := len(h.clients)  // Get count while we have the lock
+	fmt.Println("usercount",userCount)
+	h.mu.Unlock()
+	
 	// Store in Redis for distributed tracking
 	key := "ws:active"
 	h.redis.SAdd(h.ctx, key, client.sessionID)
@@ -77,8 +82,11 @@ func (h *Hub) unregisterClient(client *Client) {
 }
 
 func (h *Hub) broadcastMessage(message *Message) {
+	fmt.Println("in broadcast message")
 	h.mu.RLock()
 	defer h.mu.RUnlock()
+
+	fmt.Printf("Broadcasting message from geohash: %s to %d clients\n", message.Geohash, len(h.clients))
 
 	// Publish to Redis for multi-server support
 	channel := "chat:" + message.Geohash
@@ -86,21 +94,27 @@ func (h *Hub) broadcastMessage(message *Message) {
 	h.redis.Publish(h.ctx, channel, data)
 
 	// Broadcast to local clients
+	sentCount := 0
 	for _, client := range h.clients {
 		// Only send to clients in the same geohash or nearby
 		if client.shouldReceiveMessage(message) {
 			select {
 			case client.send <- message:
+				sentCount++
+				fmt.Printf("Sent message to client %s\n", client.sessionID)
 			default:
 				// Client's send channel is full, close it
+				fmt.Printf("Client %s send channel full, closing\n", client.sessionID)
 				close(client.send)
 				delete(h.clients, client.sessionID)
 			}
 		}
 	}
+	fmt.Printf("Message sent to %d clients\n", sentCount)
 }
 
 func (h *Hub) broadcastUserJoined(client *Client) {
+	println("broadcast user joined")
 	message := &Message{
 		Type:      MessageTypeUserJoined,
 		Username:  client.username,

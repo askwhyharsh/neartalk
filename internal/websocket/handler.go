@@ -83,6 +83,7 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "location not set"})
 		return
 	}
+	fmt.Println("geohash of ", sessionID)
 
 	// Upgrade to WebSocket
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
@@ -91,59 +92,26 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
+	fmt.Println("create client ", sessionID)
 	// Create client
 	client := NewClient(h.hub, conn, sessionID, session.Username, geohash, radius, h)
+	fmt.Printf("create client  %s\n", sessionID)
 
 	// Register client
 	h.hub.register <- client
-
-	// // Start goroutines
-	// go client.WritePump()
-	// go h.handleClientMessages(client)
-
-	// client.ReadPump()
-
+	fmt.Println("client registered")
 
 	// Start goroutines
+	fmt.Println("starting go routines")
 	go client.WritePump()
+	fmt.Println("WritePump started")
 
-	// Pass handler to client for message processing
-	client.ReadPump()
+	fmt.Println("Starting ReadPump")
+	go client.ReadPump()
 }
 
-// func (h *Handler) handleClientMessages(client *Client) {
-// 	for {
-// 		select {
-// 		case <-client.ctx.Done():
-// 			return
-// 		default:
-// 			_, messageData, err := client.conn.ReadMessage()
-// 			if err != nil {
-// 				return
-// 			}
-// 			fmt.Println("message receivedd", messageData)
-
-// 			var incoming IncomingMessage
-// 			if err := json.Unmarshal(messageData, &incoming); err != nil {
-// 				client.SendError("Invalid message format", "INVALID_FORMAT")
-// 				continue
-// 			}
-
-// 			switch incoming.Type {
-// 			case MessageTypeChat:
-// 				h.handleChatMessage(client, &incoming)
-// 			case MessageTypePing:
-// 				client.send <- &Message{
-// 					Type:      MessageTypePong,
-// 					Timestamp: time.Now().Unix(),
-// 				}
-// 			}
-// 		}
-// 	}
-// }
 
 func (h *Handler) handleChatMessage(client *Client, incoming *IncomingMessage) {
-	fmt.Println("in handleChatMessage")
 	ctx := context.Background()
 
 	// Rate limiting
@@ -177,6 +145,7 @@ func (h *Handler) handleChatMessage(client *Client, incoming *IncomingMessage) {
 	}
 
 	// Broadcast to hub
+	fmt.Println("starting broadcast", client.geohash, incoming.Content)
 	h.hub.broadcast <- message
 }
 

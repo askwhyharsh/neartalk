@@ -15,8 +15,8 @@ type MessageHandler interface {
 }
 
 const (
-	writeWait      = 10 * time.Second
-	pongWait       = 60 * time.Second
+	writeWait      = 2 * time.Second
+	pongWait       = 6 * time.Second
 	pingPeriod     = (pongWait * 9) / 10
 	maxMessageSize = 512
 )
@@ -59,33 +59,15 @@ func (c *Client) ReadPump() {
 	}()
 
 	c.conn.SetReadLimit(maxMessageSize)
-	c.conn.SetReadDeadline(time.Now().Add(pongWait))
-	c.conn.SetPongHandler(func(string) error {
-		c.conn.SetReadDeadline(time.Now().Add(pongWait))
-		return nil
-	})
-
-	// for {
-	// 	_, message, err := c.conn.ReadMessage()
-	// 	if err != nil {
-	// 		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-	// 			log.Printf("error: %v", err)
-	// 		}
-	// 		break
-	// 	}
-
-	// 	var msg IncomingMessage
-	// 	if err := json.Unmarshal(message, &msg); err != nil {
-	// 		log.Printf("error unmarshaling message: %v", err)
-	// 		continue
-	// 	}
-
-	// 	c.handleIncomingMessage(&msg)
-	// }
-
+	// c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	// c.conn.SetPongHandler(func(string) error {
+	// 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	// 	return nil
+	// })
 
 	for {
 		_, message, err := c.conn.ReadMessage()
+		fmt.Println("message received", message)
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)

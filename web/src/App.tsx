@@ -47,18 +47,21 @@ function App() {
   }, [lat, lng]);
 
   useEffect(() => {
-    if (!navigator.geolocation) return;
+    // if (!navigator.geolocation) return;
 
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        setLat(position.coords.latitude);
-        setLng(position.coords.longitude);
-      },
-      (err) => console.error("Location watch error:", err),
-      { enableHighAccuracy: true, maximumAge: 30000 }
-    );
+    // const watchId = navigator.geolocation.watchPosition(
+    //   (position) => {
+    //     setLat(position.coords.latitude);
+    //     setLng(position.coords.longitude);
+    //   },
+    //   (err) => console.error("Location watch error:", err),
+    //   { enableHighAccuracy: true, maximumAge: 30000 }
+    // );
 
-    return () => navigator.geolocation.clearWatch(watchId);
+    // return () => navigator.geolocation.clearWatch(watchId);
+    // 18, 73 -> pune
+    setLat(18.664998836621084)
+    setLng(73.83601479366986)
   }, []);
 
   useEffect(() => {
