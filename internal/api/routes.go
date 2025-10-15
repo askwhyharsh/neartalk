@@ -32,6 +32,9 @@ func SetupRoutes(r *gin.Engine, handler *Handler, wsHandler WebSocketHandler, rl
 		// Nearby users
 		api.GET("/nearby", rlMiddleware.SessionRateLimit(), handler.GetNearbyUsers)
 
+		// Nearby users
+		api.GET("/recent-messages", rlMiddleware.SessionRateLimit(), handler.GetRecentMessages)
+
 		// Health check (no rate limit)
 		api.GET("/health", handler.Health)
 	}

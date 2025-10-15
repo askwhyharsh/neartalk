@@ -107,6 +107,7 @@ func main() {
 		locationService,
 		rateLimiter,
 		val,
+		wsHandler,
 	)
 
 	// Start background services

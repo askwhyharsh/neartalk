@@ -22,7 +22,7 @@ func NewManager(service *Service, log logger.Logger) *Manager {
 
 // Start begins background cleanup of inactive sessions
 func (m *Manager) Start(ctx context.Context) {
-	ticker := time.NewTicker(5 * time.Minute)
+	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
 	m.logger.Info("Session Manager started")

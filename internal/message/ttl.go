@@ -20,7 +20,7 @@ func NewTTLManager(store *Store, log logger.Logger) *TTLManager {
 }
 
 func (m *TTLManager) Start(ctx context.Context) {
-	ticker := time.NewTicker(1 * time.Minute)
+	ticker := time.NewTicker(10 * time.Minute) // 10 minutes for now
 	defer ticker.Stop()
 
 	m.logger.Info("TTL Manager started")

@@ -3,11 +3,16 @@ package websocket
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
+
+type MessageHandler interface {
+	handleChatMessage(*Client, *IncomingMessage)
+}
 
 const (
 	writeWait      = 10 * time.Second
@@ -26,9 +31,11 @@ type Client struct {
 	radius    int
 	ctx       context.Context
 	cancel    context.CancelFunc
+	handler   MessageHandler  // Add this line
+
 }
 
-func NewClient(hub *Hub, conn *websocket.Conn, sessionID, username, geohash string, radius int) *Client {
+func NewClient(hub *Hub, conn *websocket.Conn, sessionID, username, geohash string, radius int, handler MessageHandler) *Client {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Client{
 		hub:       hub,
@@ -40,6 +47,7 @@ func NewClient(hub *Hub, conn *websocket.Conn, sessionID, username, geohash stri
 		radius:    radius,
 		ctx:       ctx,
 		cancel:    cancel,
+		handler:   handler,  // Add this line
 	}
 }
 
@@ -57,6 +65,25 @@ func (c *Client) ReadPump() {
 		return nil
 	})
 
+	// for {
+	// 	_, message, err := c.conn.ReadMessage()
+	// 	if err != nil {
+	// 		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+	// 			log.Printf("error: %v", err)
+	// 		}
+	// 		break
+	// 	}
+
+	// 	var msg IncomingMessage
+	// 	if err := json.Unmarshal(message, &msg); err != nil {
+	// 		log.Printf("error unmarshaling message: %v", err)
+	// 		continue
+	// 	}
+
+	// 	c.handleIncomingMessage(&msg)
+	// }
+
+
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
@@ -65,14 +92,28 @@ func (c *Client) ReadPump() {
 			}
 			break
 		}
-
+	
 		var msg IncomingMessage
 		if err := json.Unmarshal(message, &msg); err != nil {
 			log.Printf("error unmarshaling message: %v", err)
 			continue
 		}
 
-		c.handleIncomingMessage(&msg)
+		fmt.Println("msg type", msg.Type, msg.Content)
+	
+		// Handle message based on type
+		switch msg.Type {
+		case MessageTypeChat:
+			if c.handler != nil {
+				c.handler.handleChatMessage(c, &msg)
+			}
+		case MessageTypePing:
+			pong := &Message{
+				Type:      MessageTypePong,
+				Timestamp: time.Now().Unix(),
+			}
+			c.send <- pong
+		}
 	}
 }
 
@@ -134,20 +175,20 @@ func (c *Client) WritePump() {
 	}
 }
 
-func (c *Client) handleIncomingMessage(msg *IncomingMessage) {
-	switch msg.Type {
-	case MessageTypeChat:
-		// This will be handled by the handler
-		// The handler will validate and broadcast
-	case MessageTypePing:
-		// Respond with pong
-		pong := &Message{
-			Type:      MessageTypePong,
-			Timestamp: time.Now().Unix(),
-		}
-		c.send <- pong
-	}
-}
+// func (c *Client) handleIncomingMessage(msg *IncomingMessage) {
+// 	switch msg.Type {
+// 	case MessageTypeChat:
+// 		// This will be handled by the handler
+// 		// The handler will validate and broadcast
+// 	case MessageTypePing:
+// 		// Respond with pong
+// 		pong := &Message{
+// 			Type:      MessageTypePong,
+// 			Timestamp: time.Now().Unix(),
+// 		}
+// 		c.send <- pong
+// 	}
+// }
 
 func (c *Client) shouldReceiveMessage(msg *Message) bool {
 	// Check if message is in client's geohash vicinity

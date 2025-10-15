@@ -1,11 +1,13 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/askwhyharsh/neartalk/internal/location"
 	"github.com/askwhyharsh/neartalk/internal/ratelimit"
 	"github.com/askwhyharsh/neartalk/internal/session"
+	"github.com/askwhyharsh/neartalk/internal/websocket"
 	"github.com/askwhyharsh/neartalk/pkg/validator"
 	"github.com/gin-gonic/gin"
 )
@@ -15,6 +17,7 @@ type Handler struct {
 	locationService location.LocationService
 	rateLimiter     ratelimit.RateLimiter
 	validator       validator.Validator
+	wsHandler 		*websocket.Handler
 }
 
 type SessionResponse struct {
@@ -30,19 +33,20 @@ type NearbyUser struct {
 	Distance string `json:"distance"`
 }
 
-func NewHandler(sessionService session.SessionService, locationService location.LocationService, rateLimiter ratelimit.RateLimiter, validator validator.Validator) *Handler {
+func NewHandler(sessionService session.SessionService, locationService location.LocationService, rateLimiter ratelimit.RateLimiter, validator validator.Validator, wsHandler *websocket.Handler) *Handler {
 	return &Handler{
 		sessionService:  sessionService,
 		locationService: locationService,
 		rateLimiter:     rateLimiter,
 		validator:       validator,
+		wsHandler: 		 wsHandler,
 	}
 }
 
 // POST /api/session/create
 func (h *Handler) CreateSession(c *gin.Context) {
 	ip := c.ClientIP()
-
+	fmt.Println("client ip",ip)
 	// Check rate limit
 	allowed, err := h.rateLimiter.AllowSessionCreation(c, ip)
 	if err != nil || !allowed {
@@ -170,6 +174,37 @@ func (h *Handler) GetNearbyUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, SuccessResponse(gin.H{
 		"count": len(users),
 		"users": users,
+	}))
+}
+
+
+// GET /api/recent-messages
+func (h *Handler) GetRecentMessages(c *gin.Context) {
+	sessionID := c.Query("session_id")
+	ctx := c.Request.Context()
+	if sessionID == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse("session_id required", "INVALID_REQUEST"))
+		return
+	}
+
+	// Get nearby users
+	geohash, _, err := h.locationService.GetGeohash(ctx, sessionID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse("Failed to get recent messages", "INTERNAL_ERROR"))
+		return
+	}
+
+	// get recent messages from geo hash
+	messages, err := h.wsHandler.GetRecentMessages(ctx, geohash, 400)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse("Failed to get nearby users", "INTERNAL_ERROR"))
+		return
+	}
+
+	c.JSON(http.StatusOK, SuccessResponse(gin.H{
+		"count": len(messages),
+		"messages": messages,
 	}))
 }
 

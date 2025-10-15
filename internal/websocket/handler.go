@@ -61,6 +61,7 @@ func NewHandler(hub *Hub, redis storage.RedisClient, sessionGetter session.Sessi
 }
 
 func (h *Handler) HandleWebSocket(c *gin.Context) {
+	fmt.Println("in websocket handler")
 	sessionID := c.Query("session_id")
 	if sessionID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "session_id required"})
@@ -91,49 +92,58 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 	}
 
 	// Create client
-	client := NewClient(h.hub, conn, sessionID, session.Username, geohash, radius)
+	client := NewClient(h.hub, conn, sessionID, session.Username, geohash, radius, h)
 
 	// Register client
 	h.hub.register <- client
 
+	// // Start goroutines
+	// go client.WritePump()
+	// go h.handleClientMessages(client)
+
+	// client.ReadPump()
+
+
 	// Start goroutines
 	go client.WritePump()
-	go h.handleClientMessages(client)
 
+	// Pass handler to client for message processing
 	client.ReadPump()
 }
 
-func (h *Handler) handleClientMessages(client *Client) {
-	for {
-		select {
-		case <-client.ctx.Done():
-			return
-		default:
-			_, messageData, err := client.conn.ReadMessage()
-			if err != nil {
-				return
-			}
+// func (h *Handler) handleClientMessages(client *Client) {
+// 	for {
+// 		select {
+// 		case <-client.ctx.Done():
+// 			return
+// 		default:
+// 			_, messageData, err := client.conn.ReadMessage()
+// 			if err != nil {
+// 				return
+// 			}
+// 			fmt.Println("message receivedd", messageData)
 
-			var incoming IncomingMessage
-			if err := json.Unmarshal(messageData, &incoming); err != nil {
-				client.SendError("Invalid message format", "INVALID_FORMAT")
-				continue
-			}
+// 			var incoming IncomingMessage
+// 			if err := json.Unmarshal(messageData, &incoming); err != nil {
+// 				client.SendError("Invalid message format", "INVALID_FORMAT")
+// 				continue
+// 			}
 
-			switch incoming.Type {
-			case MessageTypeChat:
-				h.handleChatMessage(client, &incoming)
-			case MessageTypePing:
-				client.send <- &Message{
-					Type:      MessageTypePong,
-					Timestamp: time.Now().Unix(),
-				}
-			}
-		}
-	}
-}
+// 			switch incoming.Type {
+// 			case MessageTypeChat:
+// 				h.handleChatMessage(client, &incoming)
+// 			case MessageTypePing:
+// 				client.send <- &Message{
+// 					Type:      MessageTypePong,
+// 					Timestamp: time.Now().Unix(),
+// 				}
+// 			}
+// 		}
+// 	}
+// }
 
 func (h *Handler) handleChatMessage(client *Client, incoming *IncomingMessage) {
+	fmt.Println("in handleChatMessage")
 	ctx := context.Background()
 
 	// Rate limiting
@@ -206,6 +216,8 @@ func (h *Handler) GetRecentMessages(ctx context.Context, geohash string, limit i
 		}
 		messages = append(messages, &msg)
 	}
+
+	// return messages of type chat messge
 
 	return messages, nil
 }
