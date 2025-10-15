@@ -3,7 +3,7 @@ package storage
 import (
 	"context"
 	"time"
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"github.com/askwhyharsh/peoplearoundme/internal/config"
 )
 
@@ -18,6 +18,8 @@ type RedisClient interface {
 	Expire(ctx context.Context, key string, expiration time.Duration) error
 	ZAdd(ctx context.Context, key string, members ...*redis.Z) error
 	ZRangeByScore(ctx context.Context, key string, opt *redis.ZRangeBy) ([]string, error)
+	ZRevRangeByScore(ctx context.Context, key string, opt *redis.ZRangeBy) ([]string, error)
+	ZRevRange(ctx context.Context, key string, start, stop int64) ([]string, error)
 	ZRemRangeByScore(ctx context.Context, key, min, max string) error
 	ZCard(ctx context.Context, key string) (int64, error)
 	Publish(ctx context.Context, channel string, message interface{}) error
@@ -26,6 +28,7 @@ type RedisClient interface {
 	GeoRadius(ctx context.Context, key string, longitude, latitude float64, query *redis.GeoRadiusQuery) ([]redis.GeoLocation, error)
 	HSet(ctx context.Context, key string, values ...interface{}) error
 	HGet(ctx context.Context, key, field string) (string, error)
+	HGetAll(ctx context.Context, key string) (map[string]string, error)
 	HIncrBy(ctx context.Context, key, field string, incr int64) (int64, error)
 	SAdd(ctx context.Context, key string, members ...interface{}) error
 	SMembers(ctx context.Context, key string) ([]string, error)
@@ -84,7 +87,11 @@ func (r *redisClient) Expire(ctx context.Context, key string, expiration time.Du
 }
 
 func (r *redisClient) ZAdd(ctx context.Context, key string, members ...*redis.Z) error {
-	return r.client.ZAdd(ctx, key, members...).Err()
+	values := make([]redis.Z, len(members))
+    for i, m := range members {
+        values[i] = *m
+    }
+    return r.client.ZAdd(ctx, key, values...).Err()
 }
 
 func (r *redisClient) ZRangeByScore(ctx context.Context, key string, opt *redis.ZRangeBy) ([]string, error) {
@@ -93,6 +100,14 @@ func (r *redisClient) ZRangeByScore(ctx context.Context, key string, opt *redis.
 
 func (r *redisClient) ZRemRangeByScore(ctx context.Context, key, min, max string) error {
 	return r.client.ZRemRangeByScore(ctx, key, min, max).Err()
+}
+
+func (r *redisClient) ZRevRangeByScore(ctx context.Context, key string, opt *redis.ZRangeBy) ([]string, error) {
+	return r.client.ZRevRangeByScore(ctx, key, opt).Result()
+}
+
+func (r *redisClient) ZRevRange(ctx context.Context, key string, start, stop int64) ([]string, error) {
+	return r.client.ZRevRange(ctx, key, start, stop).Result()
 }
 
 func (r *redisClient) ZCard(ctx context.Context, key string) (int64, error) {
@@ -123,6 +138,10 @@ func (r *redisClient) HGet(ctx context.Context, key, field string) (string, erro
 	return r.client.HGet(ctx, key, field).Result()
 }
 
+func (r *redisClient) HGetAll(ctx context.Context, key string) (map[string]string, error) {
+	return r.client.HGetAll(ctx, key).Result()
+}
+
 func (r *redisClient) HIncrBy(ctx context.Context, key, field string, incr int64) (int64, error) {
 	return r.client.HIncrBy(ctx, key, field, incr).Result()
 }
@@ -146,7 +165,6 @@ func (r *redisClient) Ping(ctx context.Context) error {
 func (r *redisClient) Close() error {
 	return r.client.Close()
 }
-
 
 func (r *redisClient) SCard(ctx context.Context, key string) (int64, error) {
     return r.client.SCard(ctx, key).Result()

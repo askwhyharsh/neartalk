@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/askwhyharsh/peoplearoundme/internal/storage"
+	// "github.com/go-redis/redis/v8"
 	"github.com/redis/go-redis/v9"
+	"github.com/google/uuid"
 )
 
 type Store struct {
-	redis *redis.Client
+	redis storage.RedisClient
 	ttl   time.Duration
 }
 
@@ -25,7 +27,7 @@ type Message struct {
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
-func NewStore(redisClient *redis.Client, ttl time.Duration) *Store {
+func NewStore(redisClient storage.RedisClient, ttl time.Duration) *Store {
 	return &Store{
 		redis: redisClient,
 		ttl:   ttl,
@@ -54,10 +56,10 @@ func (s *Store) Save(ctx context.Context, msg *Message) error {
 	score := float64(msg.Timestamp.Unix())
 	
 	// Add to sorted set with timestamp as score
-	if err := s.redis.ZAdd(ctx, key, redis.Z{
+	if err := s.redis.ZAdd(ctx, key, &redis.Z{
 		Score:  score,
 		Member: data,
-	}).Err(); err != nil {
+	}); err != nil {
 		return fmt.Errorf("failed to save message: %w", err)
 	}
 	
@@ -75,7 +77,7 @@ func (s *Store) GetRecent(ctx context.Context, geohash string, limit int) ([]*Me
 		Min:   "-inf",
 		Max:   "+inf",
 		Count: int64(limit),
-	}).Result()
+	})
 	
 	if err != nil {
 		return nil, fmt.Errorf("failed to get messages: %w", err)
@@ -112,12 +114,12 @@ func (s *Store) CleanupExpired(ctx context.Context) error {
 		
 		// Remove expired messages (score < current timestamp - TTL)
 		expiredBefore := now - int64(s.ttl.Seconds())
-		if err := s.redis.ZRemRangeByScore(ctx, key, "-inf", fmt.Sprintf("%d", expiredBefore)).Err(); err != nil {
+		if err := s.redis.ZRemRangeByScore(ctx, key, "-inf", fmt.Sprintf("%d", expiredBefore)); err != nil {
 			continue
 		}
 		
 		// Delete empty sorted sets
-		count, err := s.redis.ZCard(ctx, key).Result()
+		count, err := s.redis.ZCard(ctx, key)
 		if err == nil && count == 0 {
 			s.redis.Del(ctx, key)
 		}

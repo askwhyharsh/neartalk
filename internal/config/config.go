@@ -32,10 +32,12 @@ type RedisConfig struct {
 }
 
 type RateLimitConfig struct {
-	MessagesPerMin       int
-	LocationPerMin       int
-	MaxUsernameChanges   int
-	SessionsPerIPPerHour int
+	MessagesPerMin         int
+	LocationUpdatesPerMin  int
+	MaxUsernameChanges     int
+	SessionsPerIPPerHour   int
+	RequestsPerMinute      int
+	ConcurrentConnections  int
 }
 
 type SessionConfig struct {
@@ -75,9 +77,11 @@ func Load() (*Config, error) {
 		},
 		RateLimit: RateLimitConfig{
 			MessagesPerMin:       getEnvInt("RATE_LIMIT_MESSAGES_PER_MIN", 10),
-			LocationPerMin:       getEnvInt("RATE_LIMIT_LOCATION_PER_MIN", 6),
+			LocationUpdatesPerMin:       getEnvInt("RATE_LIMIT_LOCATION_PER_MIN", 6),
 			MaxUsernameChanges:   getEnvInt("RATE_LIMIT_MAX_USERNAME_CHANGES", 3),
 			SessionsPerIPPerHour: getEnvInt("RATE_LIMIT_SESSIONS_PER_IP_PER_HOUR", 10),
+			RequestsPerMinute: getEnvInt("REQUESTS_PER_MINUTE", 100),
+			ConcurrentConnections: getEnvInt("CONCURRENT_CONNECTIONS", 100),
 		},
 		Session: SessionConfig{
 			TTL:        time.Duration(getEnvInt("SESSION_TTL_MINUTES", 30)) * time.Minute,

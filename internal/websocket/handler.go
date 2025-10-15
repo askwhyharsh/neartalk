@@ -8,6 +8,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/askwhyharsh/peoplearoundme/internal/location"
+	"github.com/askwhyharsh/peoplearoundme/internal/session"
+	"github.com/askwhyharsh/peoplearoundme/internal/storage"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
@@ -23,21 +26,14 @@ var upgrader = websocket.Upgrader{
 
 type Handler struct {
 	hub           *Hub
-	redis         *redis.Client
-	sessionGetter SessionGetter
-	locationGetter LocationGetter
+	redis         storage.RedisClient
+	sessionGetter session.SessionService
+	locationGetter location.LocationService
 	spamDetector  SpamDetector
 	rateLimiter   RateLimiter
 	messageTTL    time.Duration
 }
 
-type SessionGetter interface {
-	Get(ctx context.Context, sessionID string) (*SessionData, error)
-}
-
-type LocationGetter interface {
-	GetGeohash(ctx context.Context, sessionID string) (string, int, error)
-}
 
 type SpamDetector interface {
 	ValidateMessage(ctx context.Context, sessionID, content string) error
@@ -53,7 +49,7 @@ type SessionData struct {
 	Username string
 }
 
-func NewHandler(hub *Hub, redis *redis.Client, sessionGetter SessionGetter, locationGetter LocationGetter, spamDetector SpamDetector, rateLimiter RateLimiter, messageTTL time.Duration) *Handler {
+func NewHandler(hub *Hub, redis storage.RedisClient, sessionGetter session.SessionService, locationGetter location.LocationService, spamDetector SpamDetector, rateLimiter RateLimiter, messageTTL time.Duration) *Handler {
 	return &Handler{
 		hub:            hub,
 		redis:          redis,
@@ -183,22 +179,22 @@ func (h *Handler) storeMessage(ctx context.Context, msg *Message) error {
 	}
 
 	// Add to sorted set with timestamp as score
-	if err := h.redis.ZAdd(ctx, key, redis.Z{
+	if err := h.redis.ZAdd(ctx, key, &redis.Z{
 		Score:  float64(msg.Timestamp),
 		Member: data,
-	}).Err(); err != nil {
+	}); err != nil {
 		return err
 	}
 
 	// Set expiration
-	return h.redis.Expire(ctx, key, h.messageTTL).Err()
+	return h.redis.Expire(ctx, key, h.messageTTL)
 }
 
 func (h *Handler) GetRecentMessages(ctx context.Context, geohash string, limit int64) ([]*Message, error) {
 	key := fmt.Sprintf("messages:%s", geohash)
 
 	// Get recent messages
-	results, err := h.redis.ZRevRange(ctx, key, 0, limit-1).Result()
+	results, err := h.redis.ZRevRange(ctx, key, 0, limit-1)
 	if err != nil {
 		return nil, err
 	}

@@ -1,4 +1,3 @@
-
 package message
 
 import (
@@ -7,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/askwhyharsh/peoplearoundme/internal/storage"
 )
 
 type Router struct {
-	redis *redis.Client
+	redis storage.RedisClient
 	store *Store
 }
 
@@ -25,7 +24,7 @@ type BroadcastMessage struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-func NewRouter(redisClient *redis.Client, store *Store) *Router {
+func NewRouter(redisClient storage.RedisClient, store *Store) *Router {
 	return &Router{
 		redis: redisClient,
 		store: store,
@@ -45,7 +44,7 @@ func (r *Router) RouteMessage(ctx context.Context, msg *Message) error {
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
 	
-	if err := r.redis.Publish(ctx, channel, data).Err(); err != nil {
+	if err := r.redis.Publish(ctx, channel, data); err != nil {
 		return fmt.Errorf("failed to publish message: %w", err)
 	}
 	

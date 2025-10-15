@@ -11,6 +11,16 @@ import (
 
 )
 
+
+type LocationService interface {
+	UpdateLocation(ctx context.Context, sessionID string, lat, lon float64, radius int) error
+	GetLocation(ctx context.Context, sessionID string) (*Location, error)
+	GetNearbyUsers(ctx context.Context, sessionID string, getUsernameFn func(string) string) ([]NearbyUser, error)
+	GetGeohash(ctx context.Context, sessionID string) (string, int, error)
+	DeleteLocation(ctx context.Context, sessionID string) error
+	CleanupStaleLocations(ctx context.Context) error
+}
+
 type Service struct {
 	redis            storage.RedisClient
 	geohashPrecision int
@@ -152,12 +162,12 @@ func (s *Service) GetNearbyUsers(ctx context.Context, sessionID string, getUsern
 	return nearby, nil
 }
 
-func (s *Service) GetGeohash(ctx context.Context, sessionID string) (string, error) {
+func (s *Service) GetGeohash(ctx context.Context, sessionID string) (string, int, error) {
 	location, err := s.GetLocation(ctx, sessionID)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
-	return location.Geohash, nil
+	return location.Geohash,location.Radius, nil
 }
 
 func (s *Service) DeleteLocation(ctx context.Context, sessionID string) error {

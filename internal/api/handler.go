@@ -3,39 +3,21 @@ package api
 import (
 	"net/http"
 
+	"github.com/askwhyharsh/peoplearoundme/internal/location"
+	"github.com/askwhyharsh/peoplearoundme/internal/ratelimit"
+	"github.com/askwhyharsh/peoplearoundme/internal/session"
+	"github.com/askwhyharsh/peoplearoundme/pkg/validator"
 	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
-	sessionService  SessionService
-	locationService LocationService
-	rateLimiter     RateLimiter
-	validator       Validator
+	sessionService  session.SessionService
+	locationService location.LocationService
+	rateLimiter     ratelimit.RateLimiter
+	validator       validator.Validator
 }
 
-type SessionService interface {
-	Create(c *gin.Context, ipAddress string) (*SessionResponse, error)
-	Get(c *gin.Context, sessionID string) (*SessionResponse, error)
-	UpdateUsername(c *gin.Context, sessionID, username string) error
-	GetRemainingChanges(c *gin.Context, sessionID string) (int, error)
-}
 
-type LocationService interface {
-	UpdateLocation(c *gin.Context, sessionID string, lat, lon float64, radius int) error
-	GetNearbyUsers(c *gin.Context, sessionID string) ([]NearbyUser, error)
-}
-
-type RateLimiter interface {
-	AllowSessionCreation(c *gin.Context, ip string) (bool, error)
-	AllowLocationUpdate(c *gin.Context, sessionID string) (bool, error)
-	AllowUsernameChange(c *gin.Context, sessionID string) (bool, error)
-}
-
-type Validator interface {
-	ValidateUsername(username string) error
-	ValidateCoordinates(lat, lon float64) error
-	ValidateRadius(radius int) error
-}
 
 type SessionResponse struct {
 	SessionID      string `json:"session_id"`
@@ -50,7 +32,7 @@ type NearbyUser struct {
 	Distance string `json:"distance"`
 }
 
-func NewHandler(sessionService SessionService, locationService LocationService, rateLimiter RateLimiter, validator Validator) *Handler {
+func NewHandler(sessionService session.SessionService, locationService location.LocationService, rateLimiter ratelimit.RateLimiter, validator validator.Validator) *Handler {
 	return &Handler{
 		sessionService:  sessionService,
 		locationService: locationService,
@@ -99,7 +81,7 @@ func (h *Handler) UpdateUsername(c *gin.Context) {
 	}
 
 	// Check rate limit
-	allowed, err := h.rateLimiter.AllowUsernameChange(c, req.SessionID)
+	allowed,_,err := h.rateLimiter.AllowUsernameChange(c, req.SessionID)
 	if err != nil || !allowed {
 		c.JSON(http.StatusTooManyRequests, ErrorResponse("Username change limit reached", "RATE_LIMIT"))
 		return
@@ -167,13 +149,21 @@ func (h *Handler) UpdateLocation(c *gin.Context) {
 // GET /api/nearby
 func (h *Handler) GetNearbyUsers(c *gin.Context) {
 	sessionID := c.Query("session_id")
+	ctx := c.Request.Context()
 	if sessionID == "" {
 		c.JSON(http.StatusBadRequest, ErrorResponse("session_id required", "INVALID_REQUEST"))
 		return
 	}
 
 	// Get nearby users
-	users, err := h.locationService.GetNearbyUsers(c, sessionID)
+	users, err := h.locationService.GetNearbyUsers(ctx, sessionID, func(sid string) string {
+		session, err := h.sessionService.Get(ctx, sid)
+		if err != nil {
+			return "Unknown"
+		}
+		return session.Username
+	})
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse("Failed to get nearby users", "INTERNAL_ERROR"))
 		return

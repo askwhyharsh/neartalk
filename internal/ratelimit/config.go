@@ -1,16 +1,9 @@
 package ratelimit
 
-type Config struct {
-	MessagesPerMin         int
-	LocationUpdatesPerMin  int
-	MaxUsernameChanges     int
-	SessionsPerIPPerHour   int
-	RequestsPerMinute      int
-	ConcurrentConnections  int
-}
+import "github.com/askwhyharsh/peoplearoundme/internal/config"
 
-func DefaultConfig() *Config {
-	return &Config{
+func DefaultConfig() *config.RateLimitConfig {
+	return &config.RateLimitConfig{
 		MessagesPerMin:        10,
 		LocationUpdatesPerMin: 6,
 		MaxUsernameChanges:    3,

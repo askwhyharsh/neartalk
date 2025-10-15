@@ -5,20 +5,20 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/redis/go-redis/v9"
-)
+	"github.com/askwhyharsh/peoplearoundme/internal/storage"
+) 
 
 type Hub struct {
 	clients    map[string]*Client
 	broadcast  chan *Message
 	register   chan *Client
 	unregister chan *Client
-	redis      *redis.Client
+	redis      storage.RedisClient
 	mu         sync.RWMutex
 	ctx        context.Context
 }
 
-func NewHub(ctx context.Context, redisClient *redis.Client) *Hub {
+func NewHub(ctx context.Context, redisClient storage.RedisClient) *Hub {
 	return &Hub{
 		clients:    make(map[string]*Client),
 		broadcast:  make(chan *Message, 256),

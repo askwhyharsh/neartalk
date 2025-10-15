@@ -8,6 +8,7 @@ import (
 	"github.com/askwhyharsh/peoplearoundme/pkg/logger"
 )
 
+
 type Manager struct {
 	service *Service
 	logger  logger.Logger

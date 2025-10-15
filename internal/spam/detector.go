@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/askwhyharsh/peoplearoundme/internal/storage"
 )
 
 type Detector struct {
-	redis                  *redis.Client
+	redis                  storage.RedisClient
 	profanityEnabled       bool
 	duplicateWindowSeconds int
 	maxURLsPerMessage      int
@@ -22,7 +22,7 @@ type Detector struct {
 	mu                     sync.RWMutex
 }
 
-func NewDetector(redisClient *redis.Client, profanityEnabled bool, duplicateWindow, maxURLs int) *Detector {
+func NewDetector(redisClient storage.RedisClient, profanityEnabled bool, duplicateWindow, maxURLs int) *Detector {
 	return &Detector{
 		redis:                  redisClient,
 		profanityEnabled:       profanityEnabled,
@@ -91,7 +91,7 @@ func (d *Detector) checkDuplicateSpam(ctx context.Context, sessionID, content st
 	key := fmt.Sprintf("spam:msg:%s:%s", sessionID, hash)
 
 	// Check if this exact message was sent recently
-	exists, err := d.redis.Exists(ctx, key).Result()
+	exists, err := d.redis.Exists(ctx, key)
 	if err != nil {
 		return fmt.Errorf("failed to check duplicate: %w", err)
 	}
@@ -102,7 +102,7 @@ func (d *Detector) checkDuplicateSpam(ctx context.Context, sessionID, content st
 
 	// Store the message hash with TTL
 	ttl := time.Duration(d.duplicateWindowSeconds) * time.Second
-	if err := d.redis.Set(ctx, key, 1, ttl).Err(); err != nil {
+	if err := d.redis.Set(ctx, key, 1, ttl); err != nil {
 		return fmt.Errorf("failed to store message hash: %w", err)
 	}
 
@@ -113,17 +113,17 @@ func (d *Detector) IncrementViolation(ctx context.Context, sessionID string, vio
 	key := fmt.Sprintf("spam:violations:%s", sessionID)
 	
 	// Increment violation count
-	if err := d.redis.HIncrBy(ctx, key, violationType, 1).Err(); err != nil {
+	if _, err := d.redis.HIncrBy(ctx, key, violationType, 1); err != nil {
 		return err
 	}
 
 	// Set expiration (24 hours)
-	return d.redis.Expire(ctx, key, 24*time.Hour).Err()
+	return d.redis.Expire(ctx, key, 24*time.Hour)
 }
 
 func (d *Detector) GetViolationCount(ctx context.Context, sessionID string) (map[string]int64, error) {
 	key := fmt.Sprintf("spam:violations:%s", sessionID)
-	violations, err := d.redis.HGetAll(ctx, key).Result()
+	violations, err := d.redis.HGetAll(ctx, key)
 	if err != nil {
 		return nil, err
 	}

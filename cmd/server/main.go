@@ -12,7 +12,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/redis/go-redis/v9"
 
 	"github.com/askwhyharsh/peoplearoundme/internal/api"
 	"github.com/askwhyharsh/peoplearoundme/internal/config"
@@ -69,8 +68,8 @@ func main() {
 		cfg.Location.MaxRadiusMeters,
 	)
 	
-	messageStore := message.NewStore(redisClient, cfg.Message.TTL)
-	messageRouter := message.NewRouter(redisClient, messageStore)
+	messageStore := message.NewStore(redisClient, cfg.Session.MessageTTL)
+	// messageRouter := message.NewRouter(redisClient, messageStore)
 	ttlManager := message.NewTTLManager(messageStore, appLogger)
 	
 	spamDetector := spam.NewDetector(
@@ -84,20 +83,22 @@ func main() {
 	rateLimitMiddleware := ratelimit.NewMiddleware(rateLimiter)
 
 	// Initialize validator
-	val := validator.New()
+	val := validator.NewValidator()
 
 	// Initialize WebSocket hub
-	hub := websocket.NewHub(appLogger, messageRouter, locationService, sessionService)
-	go hub.Run(ctx)
+	// hub := websocket.NewHub(appLogger, messageRouter, locationService, sessionService)
+	hub := websocket.NewHub(ctx, redisClient)
+	go hub.Run()
 
 	// Initialize WebSocket handler
 	wsHandler := websocket.NewHandler(
 		hub,
+		redisClient, 
 		sessionService,
-		sessionManager,
-		rateLimiter,
+		locationService,
 		spamDetector,
-		appLogger,
+		rateLimiter,
+		cfg.Session.MessageTTL,
 	)
 
 	// Initialize API handler
@@ -106,7 +107,6 @@ func main() {
 		locationService,
 		rateLimiter,
 		val,
-		appLogger,
 	)
 
 	// Start background services
@@ -140,7 +140,7 @@ func main() {
 
 	// Create HTTP server
 	srv := &http.Server{
-		Addr:         fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
+		Addr:         fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port),
 		Handler:      router,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
@@ -151,7 +151,7 @@ func main() {
 	go func() {
 		appLogger.Info("Server starting", "address", srv.Addr, "env", cfg.Env)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			appLogger.Fatal("Failed to start server", "error", err)
+			appLogger.Error("Failed to start server", "error", err)
 		}
 	}()
 

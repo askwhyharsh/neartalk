@@ -11,6 +11,17 @@ import (
 	"github.com/askwhyharsh/peoplearoundme/internal/storage"
 )
 
+
+type SessionService interface {
+	Create(ctx context.Context, ipAddress string) (*Session, error)
+	Get(ctx context.Context, sessionID string) (*Session, error)
+	UpdateUsername(ctx context.Context, sessionID, newUsername string) error
+	UpdateLastSeen(ctx context.Context, sessionID string) error
+	Delete(ctx context.Context, sessionID string) error
+	GetRemainingChanges(ctx context.Context, sessionID string) (int, error)
+	Exists(ctx context.Context, sessionID string) (bool, error)
+}
+
 type Service struct {
 	redis      storage.RedisClient
 	ttl        time.Duration

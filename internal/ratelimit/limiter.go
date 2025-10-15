@@ -5,15 +5,43 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/askwhyharsh/peoplearoundme/internal/config"
+	"github.com/askwhyharsh/peoplearoundme/internal/storage"
 	"github.com/redis/go-redis/v9"
 )
 
-type Limiter struct {
-	redis  *redis.Client
-	config *Config
+// RateLimiter defines the contract for enforcing and managing rate limits.
+type RateLimiter interface {
+	// AllowMessage checks if a session is allowed to send a message right now.
+	AllowMessage(ctx context.Context, sessionID string) (bool, error)
+	
+	// AllowLocationUpdate checks if a session can update its location.
+	AllowLocationUpdate(ctx context.Context, sessionID string) (bool, error)
+	
+	// AllowUsernameChange checks if a session can change its username.
+	// Returns (allowed, remaining_changes, error).
+	AllowUsernameChange(ctx context.Context, sessionID string) (bool, int, error)
+	
+	// AllowSessionCreation checks if an IP can create a new session.
+	AllowSessionCreation(ctx context.Context, ip string) (bool, error)
+	
+	// AllowIPRequest checks if an IP can make a request.
+	AllowIPRequest(ctx context.Context, ip string) (bool, error)
+	
+	// GetRemainingMessages returns how many messages a session can still send in the current window.
+	GetRemainingMessages(ctx context.Context, sessionID string) (int, error)
+	
+	// ResetLimits clears all rate limit counters for a session.
+	ResetLimits(ctx context.Context, sessionID string) error
 }
 
-func NewLimiter(redisClient *redis.Client, config *Config) *Limiter {
+
+type Limiter struct {
+	redis  storage.RedisClient
+	config config.RateLimitConfig
+}
+
+func NewLimiter(redisClient storage.RedisClient, config config.RateLimitConfig) *Limiter {
 	return &Limiter{
 		redis:  redisClient,
 		config: config,
@@ -36,7 +64,7 @@ func (l *Limiter) AllowLocationUpdate(ctx context.Context, sessionID string) (bo
 func (l *Limiter) AllowUsernameChange(ctx context.Context, sessionID string) (bool, int, error) {
 	key := fmt.Sprintf("ratelimit:username:%s", sessionID)
 	
-	count, err := l.redis.Incr(ctx, key).Result()
+	count, err := l.redis.Incr(ctx, key)
 	if err != nil {
 		return false, 0, fmt.Errorf("failed to check username rate limit: %w", err)
 	}
@@ -58,7 +86,7 @@ func (l *Limiter) AllowUsernameChange(ctx context.Context, sessionID string) (bo
 func (l *Limiter) AllowSessionCreation(ctx context.Context, ip string) (bool, error) {
 	key := fmt.Sprintf("ratelimit:ip:%s:sessions", ip)
 	
-	count, err := l.redis.Incr(ctx, key).Result()
+	count, err := l.redis.Incr(ctx, key)
 	if err != nil {
 		return false, fmt.Errorf("failed to check session creation rate limit: %w", err)
 	}
@@ -83,12 +111,12 @@ func (l *Limiter) checkSlidingWindow(ctx context.Context, key string, maxCount i
 	windowStart := now - int64(windowSec)
 	
 	// Remove old entries outside the window
-	if err := l.redis.ZRemRangeByScore(ctx, key, "-inf", fmt.Sprintf("%d", windowStart)).Err(); err != nil {
+	if err := l.redis.ZRemRangeByScore(ctx, key, "-inf", fmt.Sprintf("%d", windowStart)); err != nil {
 		return false, fmt.Errorf("failed to clean old entries: %w", err)
 	}
 	
 	// Count entries in current window
-	count, err := l.redis.ZCard(ctx, key).Result()
+	count, err := l.redis.ZCard(ctx, key)
 	if err != nil {
 		return false, fmt.Errorf("failed to count entries: %w", err)
 	}
@@ -98,10 +126,10 @@ func (l *Limiter) checkSlidingWindow(ctx context.Context, key string, maxCount i
 	}
 	
 	// Add new entry
-	if err := l.redis.ZAdd(ctx, key, redis.Z{
+	if err := l.redis.ZAdd(ctx, key, &redis.Z{
 		Score:  float64(now),
 		Member: fmt.Sprintf("%d", now),
-	}).Err(); err != nil {
+	}); err != nil {
 		return false, fmt.Errorf("failed to add entry: %w", err)
 	}
 	
@@ -114,7 +142,7 @@ func (l *Limiter) checkSlidingWindow(ctx context.Context, key string, maxCount i
 // GetRemainingMessages returns how many messages a session can still send
 func (l *Limiter) GetRemainingMessages(ctx context.Context, sessionID string) (int, error) {
 	key := fmt.Sprintf("ratelimit:msg:%s", sessionID)
-	count, err := l.redis.ZCard(ctx, key).Result()
+	count, err := l.redis.ZCard(ctx, key)
 	if err != nil {
 		return l.config.MessagesPerMin, nil
 	}
@@ -136,7 +164,7 @@ func (l *Limiter) ResetLimits(ctx context.Context, sessionID string) error {
 	}
 	
 	for _, key := range keys {
-		if err := l.redis.Del(ctx, key).Err(); err != nil {
+		if err := l.redis.Del(ctx, key); err != nil {
 			return err
 		}
 	}
