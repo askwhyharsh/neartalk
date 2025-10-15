@@ -1,6 +1,6 @@
 package ratelimit
 
-import "github.com/askwhyharsh/peoplearoundme/internal/config"
+import "github.com/askwhyharsh/neartalk/internal/config"
 
 func DefaultConfig() *config.RateLimitConfig {
 	return &config.RateLimitConfig{

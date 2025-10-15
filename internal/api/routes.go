@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/askwhyharsh/peoplearoundme/internal/ratelimit"
+	"github.com/askwhyharsh/neartalk/internal/ratelimit"
 
 	"github.com/gin-gonic/gin"
 )

@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/askwhyharsh/peoplearoundme/internal/location"
-	"github.com/askwhyharsh/peoplearoundme/internal/session"
-	"github.com/askwhyharsh/peoplearoundme/internal/storage"
+	"github.com/askwhyharsh/neartalk/internal/location"
+	"github.com/askwhyharsh/neartalk/internal/session"
+	"github.com/askwhyharsh/neartalk/internal/storage"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
@@ -25,15 +25,14 @@ var upgrader = websocket.Upgrader{
 }
 
 type Handler struct {
-	hub           *Hub
-	redis         storage.RedisClient
-	sessionGetter session.SessionService
+	hub            *Hub
+	redis          storage.RedisClient
+	sessionGetter  session.SessionService
 	locationGetter location.LocationService
-	spamDetector  SpamDetector
-	rateLimiter   RateLimiter
-	messageTTL    time.Duration
+	spamDetector   SpamDetector
+	rateLimiter    RateLimiter
+	messageTTL     time.Duration
 }
-
 
 type SpamDetector interface {
 	ValidateMessage(ctx context.Context, sessionID, content string) error

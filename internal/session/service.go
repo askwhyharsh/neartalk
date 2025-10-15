@@ -6,11 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/askwhyharsh/neartalk/internal/storage"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
-	"github.com/askwhyharsh/peoplearoundme/internal/storage"
 )
-
 
 type SessionService interface {
 	Create(ctx context.Context, ipAddress string) (*Session, error)

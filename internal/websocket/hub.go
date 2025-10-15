@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/askwhyharsh/peoplearoundme/internal/storage"
-) 
+	"github.com/askwhyharsh/neartalk/internal/storage"
+)
 
 type Hub struct {
 	clients    map[string]*Client

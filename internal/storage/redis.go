@@ -3,13 +3,14 @@ package storage
 import (
 	"context"
 	"time"
+
+	"github.com/askwhyharsh/neartalk/internal/config"
 	"github.com/redis/go-redis/v9"
-	"github.com/askwhyharsh/peoplearoundme/internal/config"
 )
 
 type RedisClient interface {
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error
-	Scan(ctx context.Context, cursor uint64, match string, count int64) *redis.ScanCmd 
+	Scan(ctx context.Context, cursor uint64, match string, count int64) *redis.ScanCmd
 	SCard(ctx context.Context, key string) (int64, error)
 	Get(ctx context.Context, key string) (string, error)
 	Del(ctx context.Context, keys ...string) error
@@ -59,7 +60,7 @@ func NewRedisClient(cfg *config.Config) (RedisClient, error) {
 }
 
 func (r *redisClient) Raw() *redis.Client {
-    return r.client
+	return r.client
 }
 
 func (r *redisClient) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
@@ -88,10 +89,10 @@ func (r *redisClient) Expire(ctx context.Context, key string, expiration time.Du
 
 func (r *redisClient) ZAdd(ctx context.Context, key string, members ...*redis.Z) error {
 	values := make([]redis.Z, len(members))
-    for i, m := range members {
-        values[i] = *m
-    }
-    return r.client.ZAdd(ctx, key, values...).Err()
+	for i, m := range members {
+		values[i] = *m
+	}
+	return r.client.ZAdd(ctx, key, values...).Err()
 }
 
 func (r *redisClient) ZRangeByScore(ctx context.Context, key string, opt *redis.ZRangeBy) ([]string, error) {
@@ -167,9 +168,9 @@ func (r *redisClient) Close() error {
 }
 
 func (r *redisClient) SCard(ctx context.Context, key string) (int64, error) {
-    return r.client.SCard(ctx, key).Result()
+	return r.client.SCard(ctx, key).Result()
 }
 
 func (r *redisClient) Scan(ctx context.Context, cursor uint64, match string, count int64) *redis.ScanCmd {
-    return r.client.Scan(ctx, cursor, match, count)
+	return r.client.Scan(ctx, cursor, match, count)
 }

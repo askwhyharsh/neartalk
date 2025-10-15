@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/askwhyharsh/peoplearoundme/pkg/logger"
+	"github.com/askwhyharsh/neartalk/pkg/logger"
 )
-
 
 type Manager struct {
 	service *Service
@@ -25,9 +24,9 @@ func NewManager(service *Service, log logger.Logger) *Manager {
 func (m *Manager) Start(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
-	
+
 	m.logger.Info("Session Manager started")
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -54,15 +53,15 @@ func (m *Manager) ValidateSession(ctx context.Context, sessionID string) error {
 	if err != nil {
 		return fmt.Errorf("failed to validate session: %w", err)
 	}
-	
+
 	if !exists {
 		return fmt.Errorf("session not found or expired")
 	}
-	
+
 	// Update last seen
 	if err := m.service.UpdateLastSeen(ctx, sessionID); err != nil {
 		m.logger.Error("Failed to update last seen", "session_id", sessionID, "error", err)
 	}
-	
+
 	return nil
 }

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/askwhyharsh/peoplearoundme/internal/storage"
+	"github.com/askwhyharsh/neartalk/internal/storage"
 )
 
 type Detector struct {
@@ -111,7 +111,7 @@ func (d *Detector) checkDuplicateSpam(ctx context.Context, sessionID, content st
 
 func (d *Detector) IncrementViolation(ctx context.Context, sessionID string, violationType string) error {
 	key := fmt.Sprintf("spam:violations:%s", sessionID)
-	
+
 	// Increment violation count
 	if _, err := d.redis.HIncrBy(ctx, key, violationType, 1); err != nil {
 		return err

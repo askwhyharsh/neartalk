@@ -1,4 +1,4 @@
-module github.com/askwhyharsh/peoplearoundme
+module github.com/askwhyharsh/neartalk
 
 go 1.23.0
 

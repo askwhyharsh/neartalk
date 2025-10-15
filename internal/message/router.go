@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/askwhyharsh/peoplearoundme/internal/storage"
+	"github.com/askwhyharsh/neartalk/internal/storage"
 )
 
 type Router struct {
@@ -36,18 +36,18 @@ func (r *Router) RouteMessage(ctx context.Context, msg *Message) error {
 	if err := r.store.Save(ctx, msg); err != nil {
 		return fmt.Errorf("failed to save message: %w", err)
 	}
-	
+
 	// Publish to Redis pub/sub for real-time delivery
 	channel := r.channelName(msg.Geohash)
 	data, err := json.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
-	
+
 	if err := r.redis.Publish(ctx, channel, data); err != nil {
 		return fmt.Errorf("failed to publish message: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -55,9 +55,9 @@ func (r *Router) Subscribe(ctx context.Context, geohash string, handler func(*Me
 	channel := r.channelName(geohash)
 	pubsub := r.redis.Subscribe(ctx, channel)
 	defer pubsub.Close()
-	
+
 	ch := pubsub.Channel()
-	
+
 	for {
 		select {
 		case msg := <-ch:

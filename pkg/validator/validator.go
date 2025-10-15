@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	apperrors "github.com/askwhyharsh/peoplearoundme/pkg/errors"
+	apperrors "github.com/askwhyharsh/neartalk/pkg/errors"
 )
 
 type Validator interface {
@@ -38,7 +38,7 @@ func (v *validator) ValidateUsername(username string) error {
 
 func (v *validator) ValidateMessage(content string) error {
 	trimmed := strings.TrimSpace(content)
-	
+
 	if len(trimmed) == 0 {
 		return apperrors.ErrEmptyMessage
 	}

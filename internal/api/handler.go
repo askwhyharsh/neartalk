@@ -3,10 +3,10 @@ package api
 import (
 	"net/http"
 
-	"github.com/askwhyharsh/peoplearoundme/internal/location"
-	"github.com/askwhyharsh/peoplearoundme/internal/ratelimit"
-	"github.com/askwhyharsh/peoplearoundme/internal/session"
-	"github.com/askwhyharsh/peoplearoundme/pkg/validator"
+	"github.com/askwhyharsh/neartalk/internal/location"
+	"github.com/askwhyharsh/neartalk/internal/ratelimit"
+	"github.com/askwhyharsh/neartalk/internal/session"
+	"github.com/askwhyharsh/neartalk/pkg/validator"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,14 +17,12 @@ type Handler struct {
 	validator       validator.Validator
 }
 
-
-
 type SessionResponse struct {
-	SessionID      string `json:"session_id"`
-	Username       string `json:"username"`
-	ChangesLeft    int    `json:"changes_left"`
-	MaxChanges     int    `json:"max_changes"`
-	CreatedAt      string `json:"created_at"`
+	SessionID   string `json:"session_id"`
+	Username    string `json:"username"`
+	ChangesLeft int    `json:"changes_left"`
+	MaxChanges  int    `json:"max_changes"`
+	CreatedAt   string `json:"created_at"`
 }
 
 type NearbyUser struct {
@@ -81,7 +79,7 @@ func (h *Handler) UpdateUsername(c *gin.Context) {
 	}
 
 	// Check rate limit
-	allowed,_,err := h.rateLimiter.AllowUsernameChange(c, req.SessionID)
+	allowed, _, err := h.rateLimiter.AllowUsernameChange(c, req.SessionID)
 	if err != nil || !allowed {
 		c.JSON(http.StatusTooManyRequests, ErrorResponse("Username change limit reached", "RATE_LIMIT"))
 		return

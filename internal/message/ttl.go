@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/askwhyharsh/peoplearoundme/pkg/logger"
+	"github.com/askwhyharsh/neartalk/pkg/logger"
 )
 
 type TTLManager struct {
@@ -22,9 +22,9 @@ func NewTTLManager(store *Store, log logger.Logger) *TTLManager {
 func (m *TTLManager) Start(ctx context.Context) {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
-	
+
 	m.logger.Info("TTL Manager started")
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -40,11 +40,11 @@ func (m *TTLManager) Start(ctx context.Context) {
 
 func (m *TTLManager) cleanupExpiredMessages(ctx context.Context) error {
 	m.logger.Debug("Cleaning up expired messages")
-	
+
 	if err := m.store.CleanupExpired(ctx); err != nil {
 		return err
 	}
-	
+
 	m.logger.Debug("Expired messages cleanup completed")
 	return nil
 }

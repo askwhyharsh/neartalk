@@ -13,17 +13,17 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
-	"github.com/askwhyharsh/peoplearoundme/internal/api"
-	"github.com/askwhyharsh/peoplearoundme/internal/config"
-	"github.com/askwhyharsh/peoplearoundme/internal/location"
-	"github.com/askwhyharsh/peoplearoundme/internal/message"
-	"github.com/askwhyharsh/peoplearoundme/internal/ratelimit"
-	"github.com/askwhyharsh/peoplearoundme/internal/session"
-	"github.com/askwhyharsh/peoplearoundme/internal/spam"
-	"github.com/askwhyharsh/peoplearoundme/internal/storage"
-	"github.com/askwhyharsh/peoplearoundme/internal/websocket"
-	"github.com/askwhyharsh/peoplearoundme/pkg/logger"
-	"github.com/askwhyharsh/peoplearoundme/pkg/validator"
+	"github.com/askwhyharsh/neartalk/internal/api"
+	"github.com/askwhyharsh/neartalk/internal/config"
+	"github.com/askwhyharsh/neartalk/internal/location"
+	"github.com/askwhyharsh/neartalk/internal/message"
+	"github.com/askwhyharsh/neartalk/internal/ratelimit"
+	"github.com/askwhyharsh/neartalk/internal/session"
+	"github.com/askwhyharsh/neartalk/internal/spam"
+	"github.com/askwhyharsh/neartalk/internal/storage"
+	"github.com/askwhyharsh/neartalk/internal/websocket"
+	"github.com/askwhyharsh/neartalk/pkg/logger"
+	"github.com/askwhyharsh/neartalk/pkg/validator"
 )
 
 func main() {
@@ -60,25 +60,25 @@ func main() {
 	sessionService := session.NewService(redisClient, cfg.Session.TTL, cfg.RateLimit.MaxUsernameChanges)
 
 	sessionManager := session.NewManager(sessionService, appLogger)
-	
+
 	locationService := location.NewService(
 		redisClient,
 		cfg.Location.GeohashPrecision,
 		cfg.Location.MinRadiusMeters,
 		cfg.Location.MaxRadiusMeters,
 	)
-	
+
 	messageStore := message.NewStore(redisClient, cfg.Session.MessageTTL)
 	// messageRouter := message.NewRouter(redisClient, messageStore)
 	ttlManager := message.NewTTLManager(messageStore, appLogger)
-	
+
 	spamDetector := spam.NewDetector(
 		redisClient,
 		cfg.Spam.ProfanityEnabled,
 		cfg.Spam.DuplicateWindowSeconds,
 		cfg.Spam.MaxURLsPerMessage,
 	)
-	
+
 	rateLimiter := ratelimit.NewLimiter(redisClient, cfg.RateLimit)
 	rateLimitMiddleware := ratelimit.NewMiddleware(rateLimiter)
 
@@ -93,7 +93,7 @@ func main() {
 	// Initialize WebSocket handler
 	wsHandler := websocket.NewHandler(
 		hub,
-		redisClient, 
+		redisClient,
 		sessionService,
 		locationService,
 		spamDetector,
@@ -120,7 +120,7 @@ func main() {
 
 	router := gin.New()
 	router.Use(gin.Recovery())
-	
+
 	// Add logging middleware
 	router.Use(func(c *gin.Context) {
 		start := time.Now()

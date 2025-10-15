@@ -3,7 +3,7 @@ package api
 import (
 	"time"
 
-	"github.com/askwhyharsh/peoplearoundme/internal/location"
+	"github.com/askwhyharsh/neartalk/internal/location"
 )
 
 // Request types
@@ -61,8 +61,8 @@ type UpdateUsernameResponse struct {
 }
 
 type NearbyUsersResponse struct {
-	Count int                    `json:"count"`
-	Users []location.NearbyUser  `json:"users"`
+	Count int                   `json:"count"`
+	Users []location.NearbyUser `json:"users"`
 }
 
 type HealthResponse struct {
