@@ -12,6 +12,9 @@
 
 ---
 
+<img width="1027" height="955" alt="image" src="https://github.com/user-attachments/assets/0791f5bf-d67d-4091-aadb-4fb942162fbb" />
+
+
 ## 🏗️ System Architecture
 
 ### High-Level Architecture
